@@ -17,9 +17,11 @@ Limits of Passthrough
 
 The passthrough server is purely single-threaded, meaning that it can't be used to test concurrent execution within entities.
 
-In the case of any behavioral difference beteen passthrough and the reference implementation of the server (found in terracotta-core repository), the reference implementation is considered the more correct interpretation.
+In the case of any behavioral difference between passthrough and the reference implementation of the server (found in terracotta-core repository), the reference implementation is considered the more correct interpretation.
 
 Passthrough does not read Terracotta server config files but must be manually configured.
+
+Passthrough does not isolate entity types or services within their own classloaders.
 
 
 Concerning bugs found in Passthrough
