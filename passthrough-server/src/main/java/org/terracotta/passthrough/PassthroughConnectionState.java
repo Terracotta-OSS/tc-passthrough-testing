@@ -18,10 +18,13 @@
  */
 package org.terracotta.passthrough;
 
+import com.google.common.base.Throwables;
+import org.terracotta.connection.ConnectionPropertyNames;
+
 import java.util.HashMap;
 import java.util.Map;
-
-import com.google.common.base.Throwables;
+import java.util.Properties;
+import java.util.concurrent.TimeoutException;
 
 
 /**
@@ -39,18 +42,27 @@ public class PassthroughConnectionState {
   
   // Transaction IDs are managed here, as well.
   private long nextTransactionID;
-  
-  public PassthroughConnectionState(PassthroughServerProcess initialServerProcess) {
+  private final long timeout;
+
+  public PassthroughConnectionState(PassthroughServerProcess initialServerProcess, Properties properties) {
     this.serverProcess = initialServerProcess;
     this.inFlightMessages = new HashMap<Long, PassthroughWait>();
     this.nextTransactionID = 1;
+    this.timeout = Long.parseLong(properties.getProperty(ConnectionPropertyNames.CONNECTION_TIMEOUT, "-1"));
   }
 
   public synchronized PassthroughWait sendNormal(PassthroughConnection sender, PassthroughMessage message, boolean shouldWaitForSent, boolean shouldWaitForReceived, boolean shouldWaitForCompleted, boolean shouldWaitForRetired, boolean forceGetToBlockOnRetire) {
     // This uses the normal server process so wait for it to become available.
     while (null == this.serverProcess) {
       try {
-        wait();
+        if(timeout > 0) {
+          wait(timeout);
+          if (null == this.serverProcess) {
+            Throwables.propagate(new TimeoutException("No server available to process request after " + timeout + " ms"));
+          }
+        } else {
+          wait();
+        }
       } catch (InterruptedException e) {
         // The only reason we would interrupt is to kill the test.
         Throwables.propagate(e);
