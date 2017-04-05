@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicLong;
@@ -113,6 +114,10 @@ public class PassthroughServer implements PassthroughDumper {
   }
 
   public synchronized PassthroughConnection connectNewClient(String connectionName) {
+    return connectNewClient(connectionName, new Properties());
+  }
+
+  public synchronized PassthroughConnection connectNewClient(String connectionName, Properties properties) {
     Assert.assertTrue(this.hasStarted);
     final long thisConnectionID = nextConnectionID.incrementAndGet();
     // Note that we need to track the connections for reconnect so pass in this cleanup routine to remove it from our tracking.
@@ -129,7 +134,7 @@ public class PassthroughServer implements PassthroughDumper {
       }
     };
     String readerThreadName = "Client connection " + thisConnectionID;
-    PassthroughConnection connection = new PassthroughConnection(connectionName, readerThreadName, this.serverProcess, this.entityClientServices, onClose, thisConnectionID);
+    PassthroughConnection connection = new PassthroughConnection(connectionName, readerThreadName, this.serverProcess, this.entityClientServices, onClose, thisConnectionID, properties);
     this.serverProcess.connectConnection(connection, thisConnectionID);
     this.savedClientConnections.put(thisConnectionID, connection);
     return connection;
@@ -145,7 +150,7 @@ public class PassthroughServer implements PassthroughDumper {
       }
     };
     String readerThreadName = "Pseudo-connection " + thisConnectionID;
-    return new PassthroughConnection("internal pseudo-connection", readerThreadName, this.serverProcess, this.entityClientServices, onClose, thisConnectionID);
+    return new PassthroughConnection("internal pseudo-connection", readerThreadName, this.serverProcess, this.entityClientServices, onClose, thisConnectionID, new Properties());
   }
 
   public void start(boolean isActive, boolean shouldLoadStorage) {

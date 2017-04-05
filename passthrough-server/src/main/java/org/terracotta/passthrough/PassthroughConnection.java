@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Vector;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -74,11 +75,11 @@ public class PassthroughConnection implements Connection {
   private Map<Long, PassthroughWait> waitersToResend;
 
 
-  public PassthroughConnection(String connectionName, String readerThreadName, PassthroughServerProcess serverProcess, List<EntityClientService<?, ?, ? extends EntityMessage, ? extends EntityResponse>> entityClientServices, Runnable onClose, long uniqueConnectionID) {
+  public PassthroughConnection(String connectionName, String readerThreadName, PassthroughServerProcess serverProcess, List<EntityClientService<?, ?, ? extends EntityMessage, ? extends EntityResponse>> entityClientServices, Runnable onClose, long uniqueConnectionID, Properties properties) {
     this.connectionName = connectionName;
     this.uuid = java.util.UUID.randomUUID().toString();
     
-    this.connectionState = new PassthroughConnectionState(serverProcess);
+    this.connectionState = new PassthroughConnectionState(serverProcess, properties);
     this.entityClientServices = entityClientServices;
     this.nextClientEndpointID = 1;
     this.localEndpoints = new HashMap<Long, PassthroughEntityClientEndpoint<?, ?>>();

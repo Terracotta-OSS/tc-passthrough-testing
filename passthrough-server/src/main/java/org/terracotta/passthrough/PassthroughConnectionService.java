@@ -59,7 +59,7 @@ public class PassthroughConnectionService implements ConnectionService {
       if (null == connectionName) {
         connectionName = "";
       }
-      connection = server.connectNewClient(connectionName);
+      connection = server.connectNewClient(connectionName, properties);
     } else {
       throw new ConnectionException(new UnknownHostException(serverName));
     }
