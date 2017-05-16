@@ -35,6 +35,7 @@ import org.terracotta.connection.entity.EntityRef;
 import org.terracotta.entity.EntityClientService;
 import org.terracotta.entity.EntityMessage;
 import org.terracotta.entity.EntityResponse;
+import org.terracotta.entity.EntityUserException;
 import org.terracotta.entity.InvokeFuture;
 import org.terracotta.entity.MessageCodecException;
 import org.terracotta.exception.ConnectionClosedException;
@@ -389,6 +390,8 @@ public class PassthroughConnection implements Connection {
     } catch (InterruptedException e) {
       Assert.unexpected(e);
     } catch (EntityException e) {
+      Assert.unexpected(e);
+    } catch (EntityUserException e) {
       Assert.unexpected(e);
     }
   }

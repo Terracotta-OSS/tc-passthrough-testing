@@ -23,9 +23,12 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.terracotta.entity.EntityUserException;
 import org.terracotta.entity.InvokeFuture;
+import org.terracotta.entity.MessageCodecException;
 import org.terracotta.exception.ConnectionClosedException;
 import org.terracotta.exception.EntityException;
+import org.terracotta.exception.EntityServerUncaughtException;
 import org.terracotta.exception.RuntimeEntityException;
 
 
@@ -101,7 +104,7 @@ public class PassthroughWait implements InvokeFuture<byte[]> {
   }
 
   @Override
-  public byte[] get() throws InterruptedException, EntityException {
+  public byte[] get() throws InterruptedException, EntityException, EntityUserException {
     try {
       return waitForCompletion(0, TimeUnit.MILLISECONDS);
     } catch (TimeoutException te) {
@@ -110,7 +113,7 @@ public class PassthroughWait implements InvokeFuture<byte[]> {
     }
   }
   
-  private synchronized byte[] waitForCompletion(long timeout, TimeUnit unit) throws InterruptedException, EntityException, TimeoutException {
+  private synchronized byte[] waitForCompletion(long timeout, TimeUnit unit) throws InterruptedException, EntityException, EntityUserException, TimeoutException {
     Thread callingThread = Thread.currentThread();
     boolean didAdd = this.waitingThreads.add(callingThread);
     // We can't have already been waiting.
@@ -128,6 +131,11 @@ public class PassthroughWait implements InvokeFuture<byte[]> {
       this.waitingThreads.remove(callingThread);
     }
     if (null != this.checkedException) {
+      if(this.checkedException instanceof PassthroughEntityUserExceptionWrapper) {
+        throw (EntityUserException) this.checkedException.getCause();
+      } else if(this.checkedException instanceof PassthroughRuntimeEntityExceptionWrapper) {
+        throw (EntityServerUncaughtException) this.checkedException.getCause();
+      }
       throw this.checkedException;
     }
     if (null != this.uncheckedException) {
@@ -137,7 +145,7 @@ public class PassthroughWait implements InvokeFuture<byte[]> {
   }
 
   @Override
-  public byte[] getWithTimeout(long timeout, TimeUnit unit) throws InterruptedException, EntityException, TimeoutException {
+  public byte[] getWithTimeout(long timeout, TimeUnit unit) throws InterruptedException, EntityException, EntityUserException, TimeoutException {
     return waitForCompletion(timeout, unit);
   }
 

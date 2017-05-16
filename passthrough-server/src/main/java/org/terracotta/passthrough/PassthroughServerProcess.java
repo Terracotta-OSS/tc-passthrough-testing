@@ -56,7 +56,8 @@ import org.terracotta.exception.EntityConfigurationException;
 import org.terracotta.exception.EntityException;
 import org.terracotta.exception.EntityNotFoundException;
 import org.terracotta.exception.EntityNotProvidedException;
-import org.terracotta.exception.EntityUserException;
+import org.terracotta.entity.EntityUserException;
+import org.terracotta.exception.EntityServerUncaughtException;
 import org.terracotta.exception.EntityVersionMismatchException;
 import org.terracotta.monitoring.IMonitoringProducer;
 import org.terracotta.monitoring.PlatformClientFetchedEntity;
@@ -526,7 +527,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
   }
 
   @Override
-  public byte[] invoke(IMessageSenderWrapper sender, long clientInstanceID, String entityClassName, String entityName, byte[] payload) throws EntityException {
+  public byte[] invoke(IMessageSenderWrapper sender, long clientInstanceID, String entityClassName, String entityName, byte[] payload) throws EntityException, EntityUserException {
     final PassthroughEntityTuple entityTuple = new PassthroughEntityTuple(entityClassName, entityName);
     byte[] response = null;
     if (null != this.activeEntities) {
@@ -551,7 +552,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     return response;
   }
 
-  private <M extends EntityMessage, R extends EntityResponse> byte[] sendActiveInvocation(String className, String entityName, ClientDescriptor clientDescriptor, CreationData<M, R> data, byte[] payload) throws EntityUserException {
+  private <M extends EntityMessage, R extends EntityResponse> byte[] sendActiveInvocation(String className, String entityName, ClientDescriptor clientDescriptor, CreationData<M, R> data, byte[] payload) throws EntityException, EntityUserException {
     ActiveServerEntity<M, R> entity = data.getActive();
     MessageCodec<M, R> codec = data.messageCodec;
     M msg = deserialize(className, entityName, codec, payload);
@@ -563,7 +564,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     }
   }
 
-  private <M extends EntityMessage, R extends EntityResponse> void sendPassiveInvocation(String className, String entityName, CreationData<M, R> data, byte[] payload) throws EntityUserException {
+  private <M extends EntityMessage, R extends EntityResponse> void sendPassiveInvocation(String className, String entityName, CreationData<M, R> data, byte[] payload) throws EntityException, EntityUserException {
     PassiveServerEntity<M, R> entity = data.getPassive();
     MessageCodec<M, R> codec = data.messageCodec;
     M msg = deserialize(className, entityName, codec, payload);
@@ -572,13 +573,13 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     }
   }
 
-  private <M extends EntityMessage, R extends EntityResponse> void sendPassiveSyncPayload(String className, String entityName, CreationData<M, R> data, int concurrencyKey, byte[] payload) throws EntityUserException {
+  private <M extends EntityMessage, R extends EntityResponse> void sendPassiveSyncPayload(String className, String entityName, CreationData<M, R> data, int concurrencyKey, byte[] payload) throws EntityException, EntityUserException {
     PassiveServerEntity<M, R> entity = data.getPassive();
     SyncMessageCodec<M> codec = data.syncMessageCodec;
     entity.invoke(deserializeForSync(className, entityName, codec, concurrencyKey, payload));
   }
   
-  private <M extends EntityMessage, R extends EntityResponse> M deserialize(String className, String entityName, final MessageCodec<M, R> codec, final byte[] payload) throws EntityUserException {
+  private <M extends EntityMessage, R extends EntityResponse> M deserialize(String className, String entityName, final MessageCodec<M, R> codec, final byte[] payload) throws EntityException, EntityUserException {
     return runWithHelper(className, entityName, new CodecHelper<M>() {
       @Override
       public M run() throws MessageCodecException {
@@ -587,7 +588,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     });
   }
   
-  private <M extends EntityMessage, R extends EntityResponse> M deserializeForSync(String className, String entityName, final SyncMessageCodec<M> codec, final int concurrencyKey, final byte[] payload) throws EntityUserException {
+  private <M extends EntityMessage, R extends EntityResponse> M deserializeForSync(String className, String entityName, final SyncMessageCodec<M> codec, final int concurrencyKey, final byte[] payload) throws EntityException, EntityUserException {
     return runWithHelper(className, entityName, new CodecHelper<M>() {
       @Override
       public M run() throws MessageCodecException {
@@ -596,7 +597,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     });
   }
   
-  private <M extends EntityMessage, R extends EntityResponse> byte[] serializeResponse(String className, String entityName, final MessageCodec<M, R> codec, final R response) throws EntityUserException {
+  private <M extends EntityMessage, R extends EntityResponse> byte[] serializeResponse(String className, String entityName, final MessageCodec<M, R> codec, final R response) throws EntityException, EntityUserException {
     return runWithHelper(className, entityName, new CodecHelper<byte[]>() {
       @Override
       public byte[] run() throws MessageCodecException {
@@ -618,16 +619,16 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
   private static interface CodecHelper<R> {
     public R run() throws MessageCodecException;
   }
-  private <R> R runWithHelper(String className, String entityName, CodecHelper<R> helper) throws EntityUserException {
+  private <R> R runWithHelper(String className, String entityName, CodecHelper<R> helper) throws EntityException {
     R message = null;
     try {
       message = helper.run();
     } catch (MessageCodecException deserializationException) {
-      throw new EntityUserException(className, entityName, deserializationException);
+      throw new PassthroughEntityUserExceptionWrapper(new EntityUserException("Caught message codec exception", deserializationException));
     } catch (RuntimeException e) {
       // We first want to wrap this in a codec exception to convey the meaning of where this happened.
       MessageCodecException deserializationException = new MessageCodecException("Runtime exception in deserializer", e);
-      throw new EntityUserException(className, entityName, deserializationException);
+      throw new PassthroughEntityUserExceptionWrapper(new EntityUserException("Caught message codec exception", deserializationException));
     }
     return message;
   }
@@ -907,7 +908,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
   }
 
   @Override
-  public void syncPayload(IMessageSenderWrapper sender, String entityClassName, String entityName, int concurrencyKey, byte[] payload) throws EntityException {
+  public void syncPayload(IMessageSenderWrapper sender, String entityClassName, String entityName, int concurrencyKey, byte[] payload) throws EntityException, EntityUserException {
     // Sync only makes sense on passive.
     Assert.assertTrue(null != this.passiveEntities);
     

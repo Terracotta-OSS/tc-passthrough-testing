@@ -23,8 +23,6 @@ import com.google.common.util.concurrent.Futures;
 import java.util.concurrent.Future;
 
 import org.junit.Assert;
-import org.terracotta.exception.EntityException;
-import org.terracotta.exception.EntityUserException;
 
 
 /**
@@ -130,7 +128,7 @@ public class PassthroughEndpoint<M extends EntityMessage, R extends EntityRespon
       // end-points connect to it.
       synchronized (entity) {
         byte[] result = null;
-        EntityException error = null;
+        EntityUserException error = null;
         try {
           result = sendInvocation(codec.encodeMessage(request));
         } catch (EntityUserException e) {
@@ -147,7 +145,7 @@ public class PassthroughEndpoint<M extends EntityMessage, R extends EntityRespon
         R response = entity.invoke(clientDescriptor, message);
         result = codec.encodeResponse(response);
       } catch (Exception e) {
-        throw new EntityUserException(null, null, e);
+        throw new EntityUserException("exception during invoke", e);
       }
       return result;
     }

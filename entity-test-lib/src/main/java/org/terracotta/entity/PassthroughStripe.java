@@ -31,8 +31,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
 import org.junit.Assert;
-import org.terracotta.exception.EntityException;
-import org.terracotta.exception.EntityUserException;
+import org.terracotta.entity.EntityUserException;
 
 
 /**
@@ -354,7 +353,7 @@ public class PassthroughStripe<M extends EntityMessage, R extends EntityResponse
     @Override
     public InvokeFuture<R> invoke() throws MessageCodecException {
       byte[] result = null;
-      EntityException error = null;
+      EntityUserException error = null;
       try {
         result = sendInvocation(activeServerEntity, codec);
       } catch (EntityUserException e) {
@@ -369,7 +368,7 @@ public class PassthroughStripe<M extends EntityMessage, R extends EntityResponse
         R response = entity.invoke(clientDescriptor, request);
         result = codec.encodeResponse(response);
       } catch (Exception e) {
-        throw new EntityUserException(null, null, e);
+        throw new EntityUserException("exception during invoke", e);
       }
       return result;
     }

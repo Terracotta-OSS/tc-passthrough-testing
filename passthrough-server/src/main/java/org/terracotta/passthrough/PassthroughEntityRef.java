@@ -23,6 +23,7 @@ import org.terracotta.connection.entity.EntityRef;
 import org.terracotta.entity.EntityClientService;
 import org.terracotta.entity.EntityMessage;
 import org.terracotta.entity.EntityResponse;
+import org.terracotta.entity.EntityUserException;
 import org.terracotta.exception.EntityAlreadyExistsException;
 import org.terracotta.exception.EntityConfigurationException;
 import org.terracotta.exception.EntityException;
@@ -77,6 +78,8 @@ public class PassthroughEntityRef<T extends Entity, C, U> implements EntityRef<T
       }
     } catch (InterruptedException e) {
       Assert.unexpected(e);
+    } catch (EntityUserException e) {
+      Assert.unexpected(e);
     }
     return this.passthroughConnection.createEntityInstance(this.clazz, this.name, clientInstanceID, this.version, rawConfig, userData);
   }
@@ -113,6 +116,8 @@ public class PassthroughEntityRef<T extends Entity, C, U> implements EntityRef<T
         }
       } catch (InterruptedException e) {
         Assert.unexpected(e);
+      } catch (EntityUserException e) {
+        Assert.unexpected(e);
       }
     } else {
       throw new EntityNotProvidedException(this.clazz.getName(), this.name);
@@ -145,6 +150,8 @@ public class PassthroughEntityRef<T extends Entity, C, U> implements EntityRef<T
         }
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
+      } catch (EntityUserException e) {
+        throw new RuntimeException(e);
       }
     } else {
       throw new EntityNotProvidedException(this.clazz.getName(), this.name);
@@ -173,6 +180,8 @@ public class PassthroughEntityRef<T extends Entity, C, U> implements EntityRef<T
         Assert.unexpected(e);
       }
     } catch (InterruptedException e) {
+      Assert.unexpected(e);
+    } catch (EntityUserException e) {
       Assert.unexpected(e);
     }
     return false;
