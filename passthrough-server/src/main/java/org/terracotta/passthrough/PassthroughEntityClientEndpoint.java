@@ -20,6 +20,7 @@ package org.terracotta.passthrough;
 
 import org.terracotta.entity.EndpointDelegate;
 import org.terracotta.entity.EntityClientEndpoint;
+import org.terracotta.entity.EntityUserException;
 import org.terracotta.entity.InvocationBuilder;
 import org.terracotta.entity.InvokeFuture;
 import org.terracotta.entity.MessageCodecException;
@@ -92,6 +93,8 @@ public class PassthroughEntityClientEndpoint<M extends EntityMessage, R extends 
     } catch (InterruptedException e) {
       Assert.unexpected(e);
     } catch (EntityException e) {
+      Assert.unexpected(e);
+    } catch (EntityUserException e) {
       Assert.unexpected(e);
     }
     onClose.run();

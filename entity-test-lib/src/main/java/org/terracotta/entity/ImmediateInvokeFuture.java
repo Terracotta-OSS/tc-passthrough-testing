@@ -31,9 +31,9 @@ import org.terracotta.exception.EntityException;
  */
 public class ImmediateInvokeFuture<T> implements InvokeFuture<T> {
   final T result;
-  final EntityException error;
+  final EntityUserException error;
 
-  public ImmediateInvokeFuture(T result, EntityException error) {
+  public ImmediateInvokeFuture(T result, EntityUserException error) {
     this.result = result;
     this.error = error;
   }
@@ -43,7 +43,7 @@ public class ImmediateInvokeFuture<T> implements InvokeFuture<T> {
     return true;
   }
   @Override
-  public T get() throws InterruptedException, EntityException {
+  public T get() throws InterruptedException, EntityException, EntityUserException {
     if (null != error) {
       throw error;
     } else {
@@ -51,7 +51,7 @@ public class ImmediateInvokeFuture<T> implements InvokeFuture<T> {
     }
   }
   @Override
-  public T getWithTimeout(long timeout, TimeUnit unit) throws InterruptedException, EntityException, TimeoutException {
+  public T getWithTimeout(long timeout, TimeUnit unit) throws InterruptedException, EntityException, EntityUserException, TimeoutException {
     if (null != error) {
       throw error;
     } else {

@@ -23,8 +23,9 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.terracotta.entity.EntityUserException;
 import org.terracotta.exception.EntityException;
-import org.terracotta.exception.EntityUserException;
+import org.terracotta.exception.EntityServerUncaughtException;
 import org.terracotta.passthrough.PassthroughMessage.Type;
 
 
@@ -116,7 +117,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
             error = e;
           } catch (RuntimeException e) {
             // Just wrap this as a user exception since it was unexpected.
-            error = new EntityUserException(entityClassName, entityName, e);
+            error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
           }
           
           // Record the result in order to handle future re-sends.
@@ -164,7 +165,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
             error = e;
           } catch (RuntimeException e) {
             // Just wrap this as a user exception since it was unexpected.
-            error = new EntityUserException(entityClassName, entityName, e);
+            error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
           }
           
           // Record the result in order to handle future re-sends.
@@ -205,7 +206,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
             error = e;
           } catch (RuntimeException e) {
             // Just wrap this as a user exception since it was unexpected.
-            error = new EntityUserException(entityClassName, entityName, e);
+            error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
           }
           
           // Record the result in order to handle future re-sends.
@@ -241,7 +242,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
           this.messageHandler.fetch(sender, clientInstanceID, entityClassName, entityName, version, onFetch);
         } catch (RuntimeException e) {
           // Just wrap this as a user exception since it was unexpected.
-          EntityException error = new EntityUserException(entityClassName, entityName, e);
+          EntityException error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
           // An unexpected exception is the only case where we send the response at this level.
           byte[] response = null;
           sendCompleteResponse(sender, transactionID, response, error);
@@ -260,8 +261,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
         } catch (EntityException e) {
           error = e;
         } catch (RuntimeException e) {
-          // Just wrap this as a user exception since it was unexpected.
-          error = new EntityUserException(entityClassName, entityName, e);
+          error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
         }
         sendCompleteResponse(sender, transactionID, response, error);
         break;
@@ -294,11 +294,13 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
         try {
           // We respond with the config, if found.
           response = this.messageHandler.invoke(sender, clientInstanceID, entityClassName, entityName, payload);
-        } catch (EntityException e) {
-          error = e;
+        } catch (EntityUserException e) {
+          error = new PassthroughEntityUserExceptionWrapper(e);
         } catch (RuntimeException e) {
           // Just wrap this as a user exception since it was unexpected.
-          error = new EntityUserException(entityClassName, entityName, e);
+          error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
+        } catch (EntityException e) {
+          error = e;
         }
         sendCompleteResponse(sender, transactionID, response, error);
         break;
@@ -327,7 +329,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
           response = new byte[0];
         } catch (RuntimeException e) {
           // Just wrap this as a user exception since it was unexpected.
-          error = new EntityUserException(entityClassName, entityName, e);
+          error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
         }
         sendCompleteResponse(sender, transactionID, response, error);
         break;
@@ -347,7 +349,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
           error = e;
         } catch (RuntimeException e) {
           // Just wrap this as a user exception since it was unexpected.
-          error = new EntityUserException(entityClassName, entityName, e);
+          error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
         }
         // Note that there is no response for sync messages.
         byte[] response = null;
@@ -364,7 +366,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
           error = e;
         } catch (RuntimeException e) {
           // Just wrap this as a user exception since it was unexpected.
-          error = new EntityUserException(entityClassName, entityName, e);
+          error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
         }
         // Note that there is no response for sync messages.
         byte[] response = null;
@@ -382,7 +384,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
           error = e;
         } catch (RuntimeException e) {
           // Just wrap this as a user exception since it was unexpected.
-          error = new EntityUserException(entityClassName, entityName, e);
+          error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
         }
         // Note that there is no response for sync messages.
         byte[] response = null;
@@ -400,7 +402,7 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
           error = e;
         } catch (RuntimeException e) {
           // Just wrap this as a user exception since it was unexpected.
-          error = new EntityUserException(entityClassName, entityName, e);
+          error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e));
         }
         // Note that there is no response for sync messages.
         byte[] response = null;
@@ -416,11 +418,13 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
         EntityException error = null;
         try {
           this.messageHandler.syncPayload(sender, entityClassName, entityName, concurrencyKey, payload);
-        } catch (EntityException e) {
-          error = e;
+        } catch (EntityUserException e) {
+          error = new PassthroughEntityUserExceptionWrapper(e);
         } catch (RuntimeException e) {
           // Just wrap this as a user exception since it was unexpected.
-          error = new EntityUserException(entityClassName, entityName, e);
+          error = new PassthroughRuntimeEntityExceptionWrapper(new EntityServerUncaughtException(entityClassName, entityName, "", e) {});
+        } catch (EntityException e) {
+          error = e;
         }
         // Note that there is no response for sync messages.
         byte[] response = null;
@@ -487,13 +491,13 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
     boolean destroy(String entityClassName, String entityName) throws EntityException;
     void fetch(IMessageSenderWrapper sender, long clientInstanceID, String entityClassName, String entityName, long version, IFetchResult onFetch);
     void release(IMessageSenderWrapper sender, long clientInstanceID, String entityClassName, String entityName) throws EntityException;
-    byte[] invoke(IMessageSenderWrapper sender, long clientInstanceID, String entityClassName, String entityName, byte[] payload) throws EntityException;
+    byte[] invoke(IMessageSenderWrapper sender, long clientInstanceID, String entityClassName, String entityName, byte[] payload) throws EntityException, EntityUserException;
     void reconnect(IMessageSenderWrapper sender, long clientInstanceID, String entityClassName, String entityName, byte[] extendedData);
     void syncEntityStart(IMessageSenderWrapper sender, String entityClassName, String entityName) throws EntityException;
     void syncEntityEnd(IMessageSenderWrapper sender, String entityClassName, String entityName) throws EntityException;
     void syncEntityKeyStart(IMessageSenderWrapper sender, String entityClassName, String entityName, int concurrencyKey) throws EntityException;
     void syncEntityKeyEnd(IMessageSenderWrapper sender, String entityClassName, String entityName, int concurrencyKey) throws EntityException;
-    void syncPayload(IMessageSenderWrapper sender, String entityClassName, String entityName, int concurrencyKey, byte[] payload) throws EntityException;
+    void syncPayload(IMessageSenderWrapper sender, String entityClassName, String entityName, int concurrencyKey, byte[] payload) throws EntityException, EntityUserException;
   }
 
 

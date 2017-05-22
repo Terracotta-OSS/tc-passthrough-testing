@@ -18,6 +18,7 @@
  */
 package org.terracotta.passthrough;
 
+import org.terracotta.entity.EntityUserException;
 import org.terracotta.entity.InvocationBuilder;
 import org.terracotta.entity.InvokeFuture;
 import org.terracotta.entity.EntityMessage;
@@ -25,7 +26,6 @@ import org.terracotta.entity.EntityResponse;
 import org.terracotta.entity.MessageCodec;
 import org.terracotta.entity.MessageCodecException;
 import org.terracotta.exception.EntityException;
-import org.terracotta.exception.EntityUserException;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -118,20 +118,20 @@ public class PassthroughInvocationBuilder<M extends EntityMessage, R extends Ent
       }
 
       @Override
-      public R get() throws InterruptedException, EntityException {
+      public R get() throws InterruptedException, EntityException, EntityUserException {
         try {
           return messageCodec.decodeResponse(invokeFuture.get());
         } catch (MessageCodecException e) {
-          throw new EntityUserException(null, null, e);
+          throw new EntityUserException("Caught MessageCodecException while decoding response from server", e);
         }
       }
 
       @Override
-      public R getWithTimeout(long timeout, TimeUnit unit) throws InterruptedException, EntityException, TimeoutException {
+      public R getWithTimeout(long timeout, TimeUnit unit) throws InterruptedException, EntityException, EntityUserException, TimeoutException {
         try {
           return messageCodec.decodeResponse(invokeFuture.getWithTimeout(timeout, unit));
         } catch (MessageCodecException e) {
-          throw new EntityUserException(null, null, e);
+          throw new EntityUserException("Caught MessageCodecException while decoding response from server", e);
         }
       }
 
