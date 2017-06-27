@@ -148,7 +148,7 @@ public class PassthroughStripe<M extends EntityMessage, R extends EntityResponse
 //  add the ClientCommunicator builtin
       builtins.add(new ServiceProvider() {
         @Override
-        public void dumpStateTo(StateDumper stateDumper) {
+        public void addStateTo(StateDumpCollector stateDumpCollector) {
 
         }
 
