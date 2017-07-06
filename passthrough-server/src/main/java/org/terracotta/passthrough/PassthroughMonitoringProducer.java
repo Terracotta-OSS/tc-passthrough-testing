@@ -70,7 +70,7 @@ public class PassthroughMonitoringProducer implements PassthroughImplementationP
   }
 
   @Override
-  public <T> T getService(String entityClassName, String entityName, final long consumerID, DeferredEntityContainer container, ServiceConfiguration<T> configuration) throws ServiceException {
+  public <T> T getService(String entityClassName, String entityName, final long consumerID, DeferredEntityContainer container, ServiceConfiguration<T> configuration) {
     T service = null;
     Class<T> serviceType = configuration.getServiceType();
     if (serviceType.equals(IMonitoringProducer.class)) {

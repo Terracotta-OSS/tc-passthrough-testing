@@ -106,6 +106,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
   private final Map<Long, DeferredEntityContainer> consumerToLiveContainerMap;
   // The service providers offered by the user.
   private final List<ServiceProvider> serviceProviders;
+  private final List<ServiceProvider> overrideServiceProviders;
   // The service providers offered by the server's implementation.
   private final List<PassthroughImplementationProvidedServiceProvider> implementationProvidedServiceProviders;
   // Note that we will set the service provider collections into a read-only mode as we try to create a registry over them, to catch bugs.
@@ -141,6 +142,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     this.passiveEntities = (isActiveMode ? null : new HashMap<PassthroughEntityTuple, CreationData<?, ?>>());
     this.consumerToLiveContainerMap = new HashMap<Long, DeferredEntityContainer>();
     this.serviceProviders = new Vector<ServiceProvider>();
+    this.overrideServiceProviders = new Vector<ServiceProvider>();
     this.implementationProvidedServiceProviders = new Vector<PassthroughImplementationProvidedServiceProvider>();
     // Consumer IDs start at 0 since that is the one the platform gives itself.
     this.nextConsumerID = 0;
@@ -157,13 +159,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
   @SuppressWarnings("unchecked")
   public void start(boolean shouldLoadStorage, Set<Long> savedClientConnections) {
     // Make sure that we install the in-memory registry, if needed.
-    boolean isStorageInstalled = false;
-    for (ServiceProvider provider : this.serviceProviders) {
-      if (provider.getProvidedServiceTypes().contains(IPlatformPersistence.class)) {
-        isStorageInstalled = true;
-        break;
-      }
-    }
+    boolean isStorageInstalled = hasPersistenceService(serviceProviders) || hasPersistenceService(overrideServiceProviders);
     if (!isStorageInstalled) {
       PassthroughNullPlatformStorageServiceProvider nullPlatformStorageServiceProvider = new PassthroughNullPlatformStorageServiceProvider();
       ServiceProviderConfiguration config = new ServiceProviderConfiguration() {
@@ -208,7 +204,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
       this.consumerToLiveContainerMap.put(consumerID, container);
       EntityData entityData = this.persistedEntitiesByConsumerIDMap.get(consumerID);
       // Create the registry for the entity.
-      PassthroughServiceRegistry registry = new PassthroughServiceRegistry(entityData.className, entityData.entityName, consumerID, this.serviceProviders, this.implementationProvidedServiceProviders, container);
+      PassthroughServiceRegistry registry = new PassthroughServiceRegistry(entityData.className, entityData.entityName, consumerID, this.serviceProviders, this.overrideServiceProviders, this.implementationProvidedServiceProviders, container);
       // Construct the entity.
       EntityServerService<?, ?> service = null;
       try {
@@ -263,6 +259,16 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     }
     // And start the server thread.
     startServerThreadRunning();
+  }
+
+  private boolean hasPersistenceService(List<ServiceProvider> providers) {
+    for (ServiceProvider provider : providers) {
+      if (provider.getProvidedServiceTypes().contains(IPlatformPersistence.class)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   public void resumeMessageProcessing() {
@@ -367,7 +373,11 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     //  etc) to be closed by a ServiceProvider implementation.  This is ONLY called by the passthrough server since the
     //  multi-process server has no notion of clean shutdown, meaning that the analogous "clean-up" is realized through
     //  the server crashing.
-    for (ServiceProvider provider : this.serviceProviders) {
+    shutdownServiceProviders(serviceProviders);
+    shutdownServiceProviders(overrideServiceProviders);
+
+    // Close implementation provided service providers as well
+    for (PassthroughImplementationProvidedServiceProvider provider : this.implementationProvidedServiceProviders) {
       if (provider instanceof Closeable) {
         try {
           ((Closeable)provider).close();
@@ -377,9 +387,10 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
         }
       }
     }
+  }
 
-    // Close implementation provided service providers as well
-    for (PassthroughImplementationProvidedServiceProvider provider : this.implementationProvidedServiceProviders) {
+  private void shutdownServiceProviders(List<ServiceProvider> providers) {
+    for (ServiceProvider provider : providers) {
       if (provider instanceof Closeable) {
         try {
           ((Closeable)provider).close();
@@ -1012,17 +1023,21 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
   }
 
   public void registerServiceProvider(ServiceProvider serviceProvider, ServiceProviderConfiguration providerConfiguration) {
+    registerServiceProviderIn(serviceProvider, providerConfiguration, serviceProviders);
+  }
+
+  public void registerOverrideServiceProvider(ServiceProvider serviceProvider, ServiceProviderConfiguration providerConfiguration) {
+    registerServiceProviderIn(serviceProvider, providerConfiguration, overrideServiceProviders);
+  }
+
+  public void registerServiceProviderIn(ServiceProvider serviceProvider, ServiceProviderConfiguration providerConfiguration, List<ServiceProvider> registrationLocation) {
     Assert.assertTrue(!this.serviceProvidersReadOnly);
     // We run the initializer right away.
     boolean didInitialize = serviceProvider.initialize(providerConfiguration, this.platformConfiguration);
     // If the initializer fails, don't include it.
     if (didInitialize) {
-      this.serviceProviders.add(serviceProvider);
+      registrationLocation.add(serviceProvider);
     }
-  }
-
-  public void registerOverrideServiceProvider(ServiceProvider serviceProvider, ServiceProviderConfiguration providerConfiguration) {
-    registerServiceProvider(serviceProvider, providerConfiguration);
   }
 
   public synchronized void addDownstreamPassiveServerProcess(PassthroughServerProcess serverProcess) {
@@ -1183,7 +1198,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
    */
   public PassthroughServiceRegistry createServiceRegistryForInternalConsumer(String entityClassName, String entityName, long consumerID, DeferredEntityContainer container) {
     this.serviceProvidersReadOnly = true;
-    return new PassthroughServiceRegistry(entityClassName, entityName, consumerID, this.serviceProviders, this.implementationProvidedServiceProviders, container);
+    return new PassthroughServiceRegistry(entityClassName, entityName, consumerID, this.serviceProviders, this.overrideServiceProviders, this.implementationProvidedServiceProviders, container);
   }
 
   public PlatformServer getServerInfo() {
@@ -1194,7 +1209,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
     long thisConsumerID = this.nextConsumerID;
     this.nextConsumerID += 1;
     this.serviceProvidersReadOnly = true;
-    return new PassthroughServiceRegistry(entityClassName, entityName, thisConsumerID, this.serviceProviders, this.implementationProvidedServiceProviders, container);
+    return new PassthroughServiceRegistry(entityClassName, entityName, thisConsumerID, this.serviceProviders, this.overrideServiceProviders, this.implementationProvidedServiceProviders, container);
   }
 
   private EntityServerService<?, ?> getServerEntityServiceForVersion(String entityClassName, String entityName, long version) throws EntityVersionMismatchException, EntityNotProvidedException {
