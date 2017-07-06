@@ -69,6 +69,7 @@ public class PassthroughServer implements PassthroughDumper {
   // We also track various information for the restart case.
   private final List<EntityServerService<?, ?>> savedServerEntityServices;
   private final List<ServiceProviderAndConfiguration> savedServiceProviderData;
+  private final List<ServiceProviderAndConfiguration> overrideServiceProviderData;
   private final Collection<Object> extendedConfigurationObjects;
   private final Map<Long, PassthroughConnection> savedClientConnections;
   
@@ -79,6 +80,7 @@ public class PassthroughServer implements PassthroughDumper {
     // Create the containers we will use for tracking the state we will need to repopulate on restart.
     this.savedServerEntityServices = new Vector<EntityServerService<?, ?>>();
     this.savedServiceProviderData = new Vector<ServiceProviderAndConfiguration>();
+    this.overrideServiceProviderData = new Vector<ServiceProviderAndConfiguration>();
     this.extendedConfigurationObjects = new Vector<Object>();
     this.savedClientConnections = new HashMap<Long, PassthroughConnection>();
   }
@@ -212,13 +214,26 @@ public class PassthroughServer implements PassthroughDumper {
     findClasspathBuiltinServices();
 
     // Install the user-created services.
-    internalInstallServiceProvider();
+    internalInstallServiceProviders();
+    internalInstallOverrideServiceProviders();
   }
 
-  private void internalInstallServiceProvider() {
-      for (ServiceProviderAndConfiguration tuple : savedServiceProviderData) {
+  private void internalInstallServiceProviders() {
+    for (ServiceProviderAndConfiguration tuple : savedServiceProviderData) {
       try {
-          serverProcess.registerServiceProvider(tuple.serviceProvider.getClass().newInstance(), tuple.providerConfiguration);
+        serverProcess.registerServiceProvider(tuple.serviceProvider.getClass().newInstance(), tuple.providerConfiguration);
+      } catch (IllegalAccessException a) {
+        throw new RuntimeException(a);
+      } catch (InstantiationException i) {
+        throw new RuntimeException(i);
+      }
+    }
+  }
+
+  private void internalInstallOverrideServiceProviders() {
+    for (ServiceProviderAndConfiguration tuple : overrideServiceProviderData) {
+      try {
+        serverProcess.registerOverrideServiceProvider(tuple.serviceProvider.getClass().newInstance(), tuple.providerConfiguration);
       } catch (IllegalAccessException a) {
         throw new RuntimeException(a);
       } catch (InstantiationException i) {
@@ -250,13 +265,8 @@ public class PassthroughServer implements PassthroughDumper {
     internalRegisterServiceProvider(serviceProvider, providerConfiguration);
   }
 
-  /**
-   *
-   * @deprecated Use registerServiceProvider instead. There are no overrides.
-   */
-  @Deprecated
   public void registerOverrideServiceProvider(ServiceProvider serviceProvider, ServiceProviderConfiguration providerConfiguration) {
-    registerServiceProvider(serviceProvider, providerConfiguration);
+    this.overrideServiceProviderData.add(new ServiceProviderAndConfiguration(serviceProvider, providerConfiguration));
   }
 
   public void registerExtendedConfiguration(Object extendedConfigObject) {

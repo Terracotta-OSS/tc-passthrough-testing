@@ -41,7 +41,7 @@ public interface PassthroughImplementationProvidedServiceProvider {
    * @param configuration Service configuration which is to be used
    * @return service instance
    */
-  <T> T getService(String entityClassName, String entityName, long consumerID, DeferredEntityContainer container, ServiceConfiguration<T> configuration) throws ServiceException;
+  <T> T getService(String entityClassName, String entityName, long consumerID, DeferredEntityContainer container, ServiceConfiguration<T> configuration);
 
   /**
    * Since a service provider can know how to build more than one type of service, this method allows the platform to query

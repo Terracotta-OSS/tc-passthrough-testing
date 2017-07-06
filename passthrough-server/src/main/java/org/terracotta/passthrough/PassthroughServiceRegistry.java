@@ -26,7 +26,6 @@ import org.terracotta.entity.ServiceRegistry;
 import org.terracotta.passthrough.PassthroughImplementationProvidedServiceProvider.DeferredEntityContainer;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import org.terracotta.entity.ServiceException;
 
@@ -39,18 +38,19 @@ public class PassthroughServiceRegistry implements ServiceRegistry {
   private final String entityName;
   private final long consumerID;
   private final List<ServiceProvider> serviceProviders;
+  private final List<ServiceProvider> overrideServiceProviders;
   private final List<PassthroughImplementationProvidedServiceProvider> implementationProvidedServiceProviders;
   private final DeferredEntityContainer owningEntityContainer;
   
-  public PassthroughServiceRegistry(String entityClassName, String entityName, long consumerID, List<ServiceProvider> serviceProviders,
+  public PassthroughServiceRegistry(String entityClassName, String entityName, long consumerID,
+      List<ServiceProvider> serviceProviders, List<ServiceProvider> overrideServiceProviders,
       List<PassthroughImplementationProvidedServiceProvider> implementationProvidedServiceProviders, DeferredEntityContainer container) {
     this.entityClassName = entityClassName;
     this.entityName = entityName;
     this.consumerID = consumerID;
 
-    List<ServiceProvider> services = new ArrayList<ServiceProvider>(serviceProviders);
-    
-    this.serviceProviders = Collections.unmodifiableList(services);
+    this.serviceProviders = Collections.unmodifiableList(new ArrayList<ServiceProvider>(serviceProviders));
+    this.overrideServiceProviders = Collections.unmodifiableList(new ArrayList<ServiceProvider>(overrideServiceProviders));
 
     this.implementationProvidedServiceProviders = Collections.unmodifiableList(implementationProvidedServiceProviders);
     
@@ -59,70 +59,68 @@ public class PassthroughServiceRegistry implements ServiceRegistry {
 
   @Override
   public <T> T getService(ServiceConfiguration<T> configuration) throws ServiceException {
-    T builtInService = getBuiltIn(configuration);
-    T externalService = getExternal(configuration);
-    
-    if (builtInService != null && externalService != null) {
-      throw new ServiceException("multiple services defined");
+    List<T> services = getServices(configuration);
+
+    switch (services.size()) {
+      case 0:
+        return null;
+      case 1:
+        return services.get(0);
+      default:
+        throw new ServiceException("multiple services defined");
     }
-    // We need at most one match.
-    Assert.assertTrue((null == builtInService) || (null == externalService));
-    return (null != builtInService)
-        ? builtInService
-        : externalService;
   }
 
   @Override
-  public <T> Collection<T> getServices(ServiceConfiguration<T> configuration) {
-    return getExternals(configuration);
+  public <T> List<T> getServices(ServiceConfiguration<T> configuration) {
+    List<T> overrides = getOverrides(configuration);
+    if (!overrides.isEmpty()) {
+      return overrides;
+    }
+
+    List<T> services = new ArrayList<T>();
+    services.addAll(getBuiltIns(configuration));
+    services.addAll(getExternals(configuration));
+
+    return services;
   }
 
-  private <T> T getBuiltIn(ServiceConfiguration<T> configuration) throws ServiceException {
-    Class<?> serviceType = configuration.getServiceType();
-    T rService = null;
+  private <T> List<T> getBuiltIns(ServiceConfiguration<T> configuration) {
+    List<T> services = new ArrayList<T>();
+
     for (PassthroughImplementationProvidedServiceProvider provider : this.implementationProvidedServiceProviders) {
-      if (provider.getProvidedServiceTypes().contains(serviceType)) {
+      if (provider.getProvidedServiceTypes().contains(configuration.getServiceType())) {
         T service = provider.getService(this.entityClassName, this.entityName, this.consumerID, this.owningEntityContainer, configuration);
         if (service != null) {
-          if (rService != null) {
-            throw new ServiceException("multiple services defined");
-          } else {
-            return service;
-          }
+          services.add(service);
         }
       }
     }
-    return null;
+
+    return services;
   }
 
-  private <T> T getExternal(ServiceConfiguration<T> configuration) throws ServiceException {
-    T rService = null;
-    for (ServiceProvider provider : this.serviceProviders) {
+  private <T> List<T> getExternals(ServiceConfiguration<T> configuration) {
+    return getUserServices(this.serviceProviders, configuration);
+  }
+
+  private <T> List<T> getOverrides(ServiceConfiguration<T> configuration) {
+    return getUserServices(this.overrideServiceProviders, configuration);
+  }
+
+  private <T> List<T> getUserServices(List<ServiceProvider> providers, ServiceConfiguration<T> configuration) {
+    List<T> services = new ArrayList<T>();
+
+    for (ServiceProvider provider : providers) {
       if (provider.getProvidedServiceTypes().contains(configuration.getServiceType())) {
         T service = provider.getService(this.consumerID, configuration);
         if (service != null) {
-          if (rService != null) {
-            throw new ServiceException("multiple services defined");
-          } else {
-            rService = service;
-          }
+          services.add(service);
         }
       }
     }
-    return rService;
-  }
 
-  private <T> Collection<T> getExternals(ServiceConfiguration<T> configuration) {
-    List<T> items = new ArrayList<T>();
-    for (ServiceProvider provider : this.serviceProviders) {
-      if (provider.getProvidedServiceTypes().contains(configuration.getServiceType())) {
-        T service = provider.getService(this.consumerID, configuration);
-        if (service != null) {
-          items.add(service);
-        }
-      }
-    }
-    return items;
+    return services;
   }
   
   public long getConsumerID() {
