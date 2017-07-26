@@ -20,9 +20,7 @@ package org.terracotta.passthrough;
 
 import org.terracotta.entity.ClientDescriptor;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import org.terracotta.entity.ClientSourceId;
 
 
 /**
@@ -40,6 +38,23 @@ public class PassthroughClientDescriptor implements ClientDescriptor {
     this.sender = sender;
     this.clientInstanceID = clientInstanceID;
   }
+
+  @Override
+  public ClientSourceId getSourceId() {
+    return new ClientSourceId() {
+      @Override
+      public long toLong() {
+        return clientInstanceID;
+      }
+
+      @Override
+      public boolean matches(ClientDescriptor cd) {
+        return clientInstanceID == cd.getSourceId().toLong();
+      }
+    };
+  }
+  
+  
 
   @Override
   public int hashCode() {
@@ -67,15 +82,5 @@ public class PassthroughClientDescriptor implements ClientDescriptor {
     ret = ret + "," + (sender != null ? sender.toString() : "<no sender>");
     ret = ret + ",clientInstanceID=" + clientInstanceID + '}';
     return ret;
-  }
-
-  private void writeObject(ObjectOutputStream out) throws IOException {
-    out.writeLong(sender.getUniqueConnectionID());
-    out.writeLong(clientInstanceID);
-  }
-
-  private void readObject(ObjectInputStream in) throws IOException {
-    this.sender = new PassthroughConnection(null, "", null, null, null, in.readLong());
-    this.clientInstanceID = in.readLong();
   }
 }

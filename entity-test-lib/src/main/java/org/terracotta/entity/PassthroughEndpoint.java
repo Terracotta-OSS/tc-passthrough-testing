@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class PassthroughEndpoint<M extends EntityMessage, R extends EntityResponse> implements
   TxIdAwareClientEndpoint<M, R> {
-  private final ClientDescriptor clientDescriptor = new FakeClientDescriptor();
+  private final ClientDescriptor clientDescriptor = new FakeClientDescriptor(1L);
   private ActiveServerEntity<M, R> entity;
   private MessageCodec<M, R> codec;
   private byte[] configuration;
@@ -76,7 +76,29 @@ public class PassthroughEndpoint<M extends EntityMessage, R extends EntityRespon
     return new InvocationBuilderImpl();
   }
 
-  private class FakeClientDescriptor implements ClientDescriptor {
+  public static class FakeClientDescriptor implements ClientDescriptor {
+    private final long id;
+
+    public FakeClientDescriptor(long id) {
+      this.id = id;
+    }
+
+    @Override
+    public ClientSourceId getSourceId() {
+      return new ClientSourceId() {
+        @Override
+        public long toLong() {
+          return id;
+        }
+
+        @Override
+        public boolean matches(ClientDescriptor cd) {
+          return cd.getSourceId().toLong() == id;
+        }
+      };
+    }
+    
+    
   }
 
   private class InvocationBuilderImpl implements InvocationBuilder<M, R> {

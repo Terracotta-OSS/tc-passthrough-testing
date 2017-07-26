@@ -295,6 +295,21 @@ public class PassthroughStripe<M extends EntityMessage, R extends EntityResponse
       return this.id;
     }
 
+    @Override
+    public ClientSourceId getSourceId() {
+      return new ClientSourceId() {
+        @Override
+        public long toLong() {
+          return id;
+        }
+
+        @Override
+        public boolean matches(ClientDescriptor cd) {
+          return FakeClientDescriptor.this == cd;
+        }
+      };
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public boolean equals(Object obj) {

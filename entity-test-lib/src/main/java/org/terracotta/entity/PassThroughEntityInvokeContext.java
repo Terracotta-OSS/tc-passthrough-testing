@@ -1,6 +1,6 @@
 package org.terracotta.entity;
 
-public class PassThroughEntityInvokeContext implements InvokeContext {
+public class PassThroughEntityInvokeContext implements ActiveInvokeContext {
   private final ClientDescriptor descriptor;
   private final long current;
   private final long oldest;
@@ -30,4 +30,26 @@ public class PassThroughEntityInvokeContext implements InvokeContext {
   public boolean isValidClientInformation() {
     return current >= 0;
   }
+
+  @Override
+  public ClientSourceId getClientSource() {
+    return descriptor.getSourceId();
+  }
+
+  @Override
+  public ClientSourceId makeClientSourceId(long opaque) {
+    return new ClientSourceId() {
+      @Override
+      public long toLong() {
+        return opaque;
+      }
+
+      @Override
+      public boolean matches(ClientDescriptor cd) {
+        return cd.getSourceId().toLong() == opaque;
+      }
+    };
+  }
+  
+  
 }
