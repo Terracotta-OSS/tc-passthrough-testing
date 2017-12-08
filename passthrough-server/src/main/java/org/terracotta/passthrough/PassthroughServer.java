@@ -34,6 +34,8 @@ import java.util.Vector;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.entity.EntityClientService;
 import org.terracotta.entity.EntityServerService;
 import org.terracotta.entity.ServiceProvider;
@@ -53,6 +55,7 @@ public class PassthroughServer implements PassthroughDumper {
   //  instances, so we will statically assign them.
   private static final AtomicLong nextConnectionID = new AtomicLong(0L);
 
+  private static final Logger logger = LoggerFactory.getLogger(PassthroughServer.class);
 
   private String serverName;
   private int bindPort;
@@ -315,11 +318,13 @@ public class PassthroughServer implements PassthroughDumper {
   
   @Override
   public void dump() {
-    System.out.println("Connected passthrough clients:");
-    for(PassthroughConnection connection : this.savedClientConnections.values()) {
-      System.out.println("\t" + connection);
+    if(logger.isInfoEnabled()) {
+      logger.info("Connected passthrough clients:");
+      for (PassthroughConnection connection : this.savedClientConnections.values()) {
+        logger.info("\t" + connection);
+      }
+      this.serverProcess.dump();
     }
-    this.serverProcess.dump();
   }
 
   public void promoteToActive() {
@@ -375,7 +380,7 @@ public class PassthroughServer implements PassthroughDumper {
     java.util.ServiceLoader<ServiceProvider> loader = ServiceLoader.load(ServiceProvider.class);
     for (ServiceProvider provider : loader) {
       if (!provider.getClass().isAnnotationPresent(BuiltinService.class)) {
-        System.err.println("service:" + provider.getClass().getName() + " not annotated with @BuiltinService.  The service will not be included");
+        logger.error("service {} not annotated with @BuiltinService. The service will not be included", provider.getClass().getName());
       } else {
         // We want to initialize built-in providers with a null configuration only if the test 
         // has not preinstalled an override provider with the existing types

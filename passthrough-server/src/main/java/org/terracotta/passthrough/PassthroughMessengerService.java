@@ -23,6 +23,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.entity.EntityMessage;
 import org.terracotta.entity.ExplicitRetirementHandle;
 import org.terracotta.entity.IEntityMessenger;
@@ -36,6 +39,9 @@ import org.terracotta.entity.EntityResponse;
 
 
 public class PassthroughMessengerService implements IEntityMessenger<EntityMessage, EntityResponse>, EntityContainerListener {
+
+  private static final Logger logger = LoggerFactory.getLogger(PassthroughMessengerService.class);
+
   private final PassthroughServerProcess passthroughServerProcess;
   private final PassthroughRetirementManager retirementManager;
   private final DeferredEntityContainer entityContainer;
@@ -89,7 +95,7 @@ public class PassthroughMessengerService implements IEntityMessenger<EntityMessa
         }
       };
     } catch (MessageCodecException e) {
-      System.err.println("Codec error in explicit retirement: " + e);
+      logger.error("Codec error in explicit retirement", e);
       throw new RuntimeException(e);
     }
   }

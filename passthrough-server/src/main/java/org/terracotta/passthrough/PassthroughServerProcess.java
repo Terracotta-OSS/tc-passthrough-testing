@@ -18,6 +18,8 @@
  */
 package org.terracotta.passthrough;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.entity.ActiveServerEntity;
 import org.terracotta.entity.BasicServiceConfiguration;
 import org.terracotta.entity.ClientDescriptor;
@@ -85,6 +87,9 @@ import org.terracotta.entity.IEntityMessenger.MessageResponse;
  * and also test concurrency strategy.
  */
 public class PassthroughServerProcess implements MessageHandler, PassthroughDumper {
+
+  private static final Logger logger = LoggerFactory.getLogger(PassthroughServerProcess.class);
+
   private static final String ENTITIES_FILE_NAME = "entities.map";
   
   private final String serverName;
@@ -484,7 +489,7 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
       this.messageQueue.add(container);
       this.notifyAll();
     } else {
-      System.err.println("WARNING:  Dropping internally-generated message since server is shutting down");
+      logger.warn("Dropping internally-generated message since server is shutting down");
     }
   }
   
@@ -681,10 +686,12 @@ public class PassthroughServerProcess implements MessageHandler, PassthroughDump
 
   @Override
   public void dump() {
-    System.out.println("Existing entities:");
-    if(this.persistedEntitiesByConsumerIDMap != null) {
-      for(EntityData entityData : this.persistedEntitiesByConsumerIDMap.values()) {
-        System.out.println("\t" + entityData.className + ":" + entityData.entityName + ":" + entityData.version);
+    if(logger.isInfoEnabled()) {
+      logger.info("Existing entities:");
+      if (this.persistedEntitiesByConsumerIDMap != null) {
+        for (EntityData entityData : this.persistedEntitiesByConsumerIDMap.values()) {
+          logger.info("\t" + entityData.className + ":" + entityData.entityName + ":" + entityData.version);
+        }
       }
     }
   }
