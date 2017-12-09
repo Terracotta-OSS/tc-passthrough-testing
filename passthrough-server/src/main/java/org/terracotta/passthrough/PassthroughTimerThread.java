@@ -18,12 +18,18 @@
  */
 package org.terracotta.passthrough;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 
 public class PassthroughTimerThread extends Thread {
+
+  private static final Logger logger = LoggerFactory.getLogger(PassthroughTimerThread.class);
+
   private boolean shouldRun = true;
   private final AtomicLong nextNumber = new AtomicLong(1L);
   private final List<ListElement> queue = new ArrayList<ListElement>();
@@ -40,8 +46,7 @@ public class PassthroughTimerThread extends Thread {
           try {
             toRun.run();
           } catch (Throwable t) {
-            System.err.println("Unexpected exception in timer thread (timed events may be dropped)");
-            t.printStackTrace();
+            logger.error("Unexpected exception in timer thread (timed events may be dropped)", t);
           }
         } else {
           synchronized (this) {

@@ -41,6 +41,7 @@ public class PassthroughMessengerServiceProvider implements PassthroughImplement
     this.timerThread.start();
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public <T> T getService(String entityClassName, String entityName, long consumerID, DeferredEntityContainer container, ServiceConfiguration<T> configuration) {
     boolean chain = false;

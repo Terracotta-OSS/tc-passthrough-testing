@@ -18,6 +18,8 @@
  */
 package org.terracotta.passthrough;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.exception.EntityException;
 import org.terracotta.exception.EntityServerException;
 import org.terracotta.passthrough.PassthroughMessage.Type;
@@ -35,6 +37,9 @@ import java.util.Set;
  * It is used entirely on the server thread.
  */
 public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.Decoder<Void> {
+
+  private static final Logger logger = LoggerFactory.getLogger(PassthroughServerMessageDecoder.class);
+
   private final PassthroughServerProcess thisServer;
   private final MessageHandler messageHandler;
   private final PassthroughTransactionOrderManager transactionOrderManager;
@@ -472,9 +477,9 @@ public class PassthroughServerMessageDecoder implements PassthroughMessageCodec.
 
   private void sendCompleteResponse(IMessageSenderWrapper sender, long transactionID, byte[] response, EntityException error) {
     if(error != null) {
-      System.err.println("ERROR: An error occured while processing message " + transactionID + " from " + sender.getClientOriginID());
-      error.printStackTrace();
+      logger.error("An error occurred while processing message {} from {}", transactionID, sender.getClientOriginID(), error);
     }
+
     PassthroughMessage complete = PassthroughMessageCodec.createCompleteMessage(response, error);
     // The oldestTransactionID isn't relevant when sent back.
     long oldestTransactionID = -1;
