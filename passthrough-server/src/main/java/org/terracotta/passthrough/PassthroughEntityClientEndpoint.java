@@ -21,9 +21,7 @@ package org.terracotta.passthrough;
 import org.terracotta.entity.EndpointDelegate;
 import org.terracotta.entity.EntityClientEndpoint;
 import org.terracotta.entity.InvocationBuilder;
-import org.terracotta.entity.InvokeFuture;
 import org.terracotta.entity.MessageCodecException;
-import org.terracotta.exception.EntityException;
 import org.terracotta.entity.EntityMessage;
 import org.terracotta.entity.EntityResponse;
 import org.terracotta.entity.MessageCodec;
@@ -47,7 +45,7 @@ public class PassthroughEntityClientEndpoint<M extends EntityMessage, R extends 
   private final byte[] config;
   private final MessageCodec<M, R> messageCodec;
   private final Runnable onClose;
-  private EndpointDelegate delegate;
+  private EndpointDelegate<R> delegate;
   private boolean isOpen;
   
   public PassthroughEntityClientEndpoint(PassthroughConnection passthroughConnection, Class<?> entityClass, String entityName, long clientInstanceID, byte[] config, MessageCodec<M, R> messageCodec, Runnable onClose) {
@@ -70,7 +68,7 @@ public class PassthroughEntityClientEndpoint<M extends EntityMessage, R extends 
   }
 
   @Override
-  public void setDelegate(EndpointDelegate delegate) {
+  public void setDelegate(EndpointDelegate<R> delegate) {
     // This is harmless while closed but shouldn't be called so check open.
     checkEndpointOpen();
     Assert.assertTrue(null == this.delegate);
@@ -81,7 +79,7 @@ public class PassthroughEntityClientEndpoint<M extends EntityMessage, R extends 
   public InvocationBuilder<M, R> beginInvoke() {
     // We can't create new invocations when the endpoint is closed.
     checkEndpointOpen();
-    return new PassthroughInvocationBuilder<M, R>(this.connection, this.entityClass.getCanonicalName(), this.entityName, this.clientInstanceID, messageCodec);
+    return new PassthroughInvocationBuilder<>(this.connection, this.entityClass.getCanonicalName(), this.entityName, this.clientInstanceID, messageCodec);
   }
 
   @Override
@@ -94,9 +92,7 @@ public class PassthroughEntityClientEndpoint<M extends EntityMessage, R extends 
     Future<byte[]> received = this.connection.sendInternalMessageAfterAcks(releaseMessage);
     try {
       received.get();
-    } catch (InterruptedException e) {
-      Assert.unexpected(e);
-    } catch (ExecutionException e) {
+    } catch (InterruptedException | ExecutionException e) {
       Assert.unexpected(e);
     }
     onClose.run();

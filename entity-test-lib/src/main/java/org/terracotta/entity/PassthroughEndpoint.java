@@ -18,7 +18,6 @@
  */
 package org.terracotta.entity;
 
-import com.google.common.util.concurrent.Futures;
 import org.junit.Assert;
 import org.terracotta.exception.EntityException;
 import org.terracotta.exception.EntityServerException;
@@ -41,13 +40,13 @@ public class PassthroughEndpoint<M extends EntityMessage, R extends EntityRespon
   private ActiveServerEntity<M, R> entity;
   private MessageCodec<M, R> codec;
   private byte[] configuration;
-  private EndpointDelegate delegate;
+  private EndpointDelegate<R> delegate;
   private final ClientCommunicator clientCommunicator = new TestClientCommunicator();
   private boolean isOpen;
   private AtomicLong idGenerator = new AtomicLong(0);
   private volatile long eldest = -1L;
   private ConcurrencyStrategy<M> concurrencyStrategy;
-  private InvokeMonitor monitor;
+  private InvokeMonitor<R> monitor;
 
   public PassthroughEndpoint() {
     // We start in the open state.
@@ -73,7 +72,7 @@ public class PassthroughEndpoint<M extends EntityMessage, R extends EntityRespon
   }
 
   @Override
-  public void setDelegate(EndpointDelegate delegate) {
+  public void setDelegate(EndpointDelegate<R> delegate) {
     // This is harmless while closed but shouldn't be called so check open.
     checkEndpointOpen();
     Assert.assertNull(this.delegate);
@@ -181,11 +180,11 @@ public class PassthroughEndpoint<M extends EntityMessage, R extends EntityRespon
     }
     
     private byte[] sendInvocation(byte[] payload, InvokeMonitor<R> monitor) throws EntityException {
-      byte[] result = null;
+      byte[] result;
       try {
         M message = codec.decodeMessage(payload);
         int key = concurrencyStrategy.concurrencyKey(message);
-        R response = entity.invokeActive(new PassThroughEntityActiveInvokeContext<R>(clientDescriptor,
+        R response = entity.invokeActive(new PassThroughEntityActiveInvokeContext<>(clientDescriptor,
                                                                                   key,
                                                                                   idGenerator.incrementAndGet(),
                                                                                   eldest, monitor), message);

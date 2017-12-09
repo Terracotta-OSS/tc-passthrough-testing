@@ -70,6 +70,10 @@ limitations under the License.
           <configuration>
             <source>${java.build.version}</source>
             <target>${java.build.version}</target>
+            <compilerArgs>
+              <arg>-Xlint:unchecked</arg>
+              <arg>-Werror</arg>
+            </compilerArgs>
           </configuration>
         </plugin>
       </plugins>

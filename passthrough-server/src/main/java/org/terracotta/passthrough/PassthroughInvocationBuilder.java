@@ -55,7 +55,7 @@ public class PassthroughInvocationBuilder<M extends EntityMessage, R extends Ent
   private boolean shouldBlockGetUntilRetire;
   private boolean deferredResponse;
   private M request;
-  private InvokeMonitor monitor;
+  private InvokeMonitor<R> monitor;
   private Executor executor;
   
   public PassthroughInvocationBuilder(PassthroughConnection connection, String entityClassName, String entityName, long clientInstanceID, MessageCodec<M, R> messageCodec) {
@@ -143,7 +143,7 @@ public class PassthroughInvocationBuilder<M extends EntityMessage, R extends Ent
     final PassthroughMessage message = PassthroughMessageCodec.createInvokeMessage(this.entityClassName, this.entityName, this.clientInstanceID, messageCodec.encodeMessage(this.request), this.shouldReplicate);
     final Future<byte[]> invokeFuture = this.connection.invokeActionAndWaitForAcks(message, 
         this.shouldWaitForSent, this.shouldWaitForReceived, this.shouldWaitForCompleted, 
-        this.shouldWaitForRetired, this.shouldBlockGetUntilRetire, this.deferredResponse, new PassthroughMonitor(messageCodec, monitor, executor));
+        this.shouldWaitForRetired, this.shouldBlockGetUntilRetire, this.deferredResponse, new PassthroughMonitor<>(messageCodec, monitor, executor));
     return new InvokeFuture<R>() {
       @Override
       public boolean isDone() {

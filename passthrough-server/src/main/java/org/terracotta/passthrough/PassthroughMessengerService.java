@@ -161,7 +161,7 @@ public class PassthroughMessengerService implements IEntityMessenger<EntityMessa
   }
 
   @Override
-  public void messageSelfAndDeferRetirement(EntityMessage originalMessageToDefer, EntityMessage newMessageToSchedule, Consumer response) throws MessageCodecException {
+  public void messageSelfAndDeferRetirement(EntityMessage originalMessageToDefer, EntityMessage newMessageToSchedule, Consumer<MessageResponse<EntityResponse>> response) throws MessageCodecException {
     retirementManager.deferCurrentMessage(newMessageToSchedule);
     PassthroughMessage passthroughMessage = makePassthroughMessage(newMessageToSchedule);
     this.passthroughServerProcess.sendMessageToActiveFromInsideActive(newMessageToSchedule, passthroughMessage, queueForComplete(response));
