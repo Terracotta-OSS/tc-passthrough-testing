@@ -87,6 +87,11 @@ public class PassthroughEndpoint<M extends EntityMessage, R extends EntityRespon
     return new InvocationBuilderImpl();
   }
 
+  @Override
+  public AsyncInvocationBuilder<M, R> beginAsyncInvoke() {
+    throw new UnsupportedOperationException("implement me");
+  }
+
   private class FakeClientDescriptor implements ClientDescriptor {
     @Override
     public ClientSourceId getSourceId() {

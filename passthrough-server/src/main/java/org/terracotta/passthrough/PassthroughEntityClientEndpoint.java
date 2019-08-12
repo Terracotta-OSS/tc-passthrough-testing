@@ -18,20 +18,19 @@
  */
 package org.terracotta.passthrough;
 
+import org.terracotta.entity.AsyncInvocationBuilder;
 import org.terracotta.entity.EndpointDelegate;
 import org.terracotta.entity.EntityClientEndpoint;
-import org.terracotta.entity.InvocationBuilder;
-import org.terracotta.entity.InvokeFuture;
-import org.terracotta.entity.MessageCodecException;
-import org.terracotta.exception.EntityException;
 import org.terracotta.entity.EntityMessage;
 import org.terracotta.entity.EntityResponse;
+import org.terracotta.entity.InvocationBuilder;
 import org.terracotta.entity.MessageCodec;
+import org.terracotta.entity.MessageCodecException;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
-import java.util.concurrent.ExecutionException;
 
 
 /**
@@ -82,6 +81,11 @@ public class PassthroughEntityClientEndpoint<M extends EntityMessage, R extends 
     // We can't create new invocations when the endpoint is closed.
     checkEndpointOpen();
     return new PassthroughInvocationBuilder<M, R>(this.connection, this.entityClass.getCanonicalName(), this.entityName, this.clientInstanceID, messageCodec);
+  }
+
+  @Override
+  public AsyncInvocationBuilder<M, R> beginAsyncInvoke() {
+    throw new UnsupportedOperationException("implement me");
   }
 
   @Override

@@ -292,6 +292,11 @@ public class PassthroughStripe<M extends EntityMessage, R extends EntityResponse
     }
 
     @Override
+    public AsyncInvocationBuilder<M, R> beginAsyncInvoke() {
+      throw new UnsupportedOperationException("implement me");
+    }
+
+    @Override
     public void close() {
       PassthroughStripe.this.connectCountMap.put(this.entityName, PassthroughStripe.this.connectCountMap.get(this.entityName).intValue() - 1);
     }
