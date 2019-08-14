@@ -85,7 +85,9 @@ public class PassthroughEntityClientEndpoint<M extends EntityMessage, R extends 
 
   @Override
   public AsyncInvocationBuilder<M, R> beginAsyncInvoke() {
-    throw new UnsupportedOperationException("implement me");
+    // We can't create new invocations when the endpoint is closed.
+    checkEndpointOpen();
+    return new PassthroughAsyncInvocationBuilder<M, R>(this.connection, this.entityClass.getCanonicalName(), this.entityName, this.clientInstanceID, messageCodec);
   }
 
   @Override

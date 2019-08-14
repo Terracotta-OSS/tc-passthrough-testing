@@ -18,6 +18,10 @@
  */
 package org.terracotta.passthrough;
 
+import org.terracotta.exception.ConnectionClosedException;
+import org.terracotta.exception.EntityException;
+import org.terracotta.exception.RuntimeEntityException;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -25,17 +29,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.terracotta.exception.ConnectionClosedException;
-import org.terracotta.exception.EntityException;
-import org.terracotta.exception.RuntimeEntityException;
-
 
 /**
  * Used by the client-side message processing to handle the synchronous nature of the messaging system.  This expects the
  * client code's thread to block on acks or completion, and be unblocked by the client-send message processing thread
  * processing the corresponding acks and completion messages.
  */
-public class PassthroughWait implements Future<byte[]> {
+public class PassthroughWait implements PassthroughAckProcessor, Future<byte[]> {
   // Save the information used to reset this object on resend.
   private byte[] rawMessageForResend;
   private final boolean shouldWaitForReceived;
@@ -44,7 +44,7 @@ public class PassthroughWait implements Future<byte[]> {
   // Note that the point where we wait for acks isn't exposed outside the InvokeFuture interface so this set of waiting
   // threads only applies to those threads waiting to get a response.
   private final Set<Thread> waitingThreads;
-  
+
   // The active state of the instance after the send.
   private boolean waitingForSent;
   private boolean waitingForReceive;
