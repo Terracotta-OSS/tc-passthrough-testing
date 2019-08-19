@@ -18,6 +18,7 @@
  */
 package org.terracotta.passthrough;
 
+import org.awaitility.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,14 +72,14 @@ public class AsyncInvokeTest {
       sampleEntity.doSomething();
 
       // wait for all async events
-      await().until(SampleEntityClient.CALLBACK.events::size, is(4));
+      await().atMost(Duration.FIVE_SECONDS).until(SampleEntityClient.CALLBACK.events::size, is(5));
 
       // assert all events individually
       int i = 0;
       assertThat(SampleEntityClient.CALLBACK.events.get(i++), is(SampleEntityClient.Event.SENT));
       assertThat(SampleEntityClient.CALLBACK.events.get(i++), is(SampleEntityClient.Event.RECEIVED));
       assertThat(SampleEntityClient.CALLBACK.events.get(i++), instanceOf(SampleEntityResponse.class));
-//      assertThat(SampleEntityClient.CALLBACK.events.get(i++), is(SampleEntityClient.Event.COMPLETE)); // TODO this one is MIA
+      assertThat(SampleEntityClient.CALLBACK.events.get(i++), is(SampleEntityClient.Event.COMPLETE));
       assertThat(SampleEntityClient.CALLBACK.events.get(i++), is(SampleEntityClient.Event.RETIRED));
 
       // check that the server received the message

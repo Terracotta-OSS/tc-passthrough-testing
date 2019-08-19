@@ -38,6 +38,7 @@ public class PassthroughAsyncAckProcessor implements PassthroughAckProcessor {
 
   private volatile byte[] rawMessage;
   private volatile boolean sent = false;
+  private volatile boolean failure = false;
 
   public <R extends EntityResponse, M extends EntityMessage> PassthroughAsyncAckProcessor(MessageCodec<M, R> messageCodec, InvocationCallback<EntityResponse> invocationCallback) {
     this.messageCodec = messageCodec;
@@ -65,9 +66,11 @@ public class PassthroughAsyncAckProcessor implements PassthroughAckProcessor {
         EntityResponse entityResponse = messageCodec.decodeResponse(result);
         invocationCallback.result(entityResponse);
       } else {
+        failure = true;
         invocationCallback.failure(error);
       }
     } catch (MessageCodecException e) {
+      failure = true;
       invocationCallback.failure(e);
     }
   }
@@ -79,6 +82,9 @@ public class PassthroughAsyncAckProcessor implements PassthroughAckProcessor {
 
   @Override
   public void handleRetire() {
+    if (!failure) {
+      invocationCallback.complete();
+    }
     invocationCallback.retired();
   }
 
