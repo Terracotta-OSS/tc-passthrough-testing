@@ -18,7 +18,6 @@
  */
 package org.terracotta.entity;
 
-import com.google.common.util.concurrent.Futures;
 import com.tc.classloader.BuiltinService;
 import com.tc.classloader.OverrideService;
 import com.tc.classloader.OverrideServiceType;
@@ -33,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -293,7 +293,14 @@ public class PassthroughStripe<M extends EntityMessage, R extends EntityResponse
 
     @Override
     public AsyncInvocationBuilder<M, R> beginAsyncInvoke() {
-      throw new UnsupportedOperationException("implement me");
+      return new AsyncStripeInvocationBuilder(
+          this.clientDescriptor,
+          currentId.incrementAndGet(),
+          eldestid,
+          PassthroughStripe.this.activeMap.get(this.entityName),
+          PassthroughStripe.this.codecs.get(this.entityName),
+          PassthroughStripe.this.concurrencyMap.get(this.entityName)
+      );
     }
 
     @Override
@@ -340,6 +347,80 @@ public class PassthroughStripe<M extends EntityMessage, R extends EntityResponse
     public ClientSourceId getSourceId() {
       // todo
       return null;
+    }
+  }
+
+  private class AsyncStripeInvocationBuilder implements AsyncInvocationBuilder<M, R> {
+    private final ClientDescriptor clientDescriptor;
+    private final long currentId;
+    private final long eldestid;
+    private final ConcurrencyStrategy<M> concurrency;
+    private final ActiveServerEntity<M, R> activeServerEntity;
+    private final MessageCodec<M, R> codec;
+    private M request;
+
+    public AsyncStripeInvocationBuilder(ClientDescriptor clientDescriptor,
+                                        long currentId,
+                                        long eldestid,
+                                        ActiveServerEntity<M, R> activeServerEntity,
+                                        MessageCodec<M, R> codec,
+                                        ConcurrencyStrategy<M> concurrency) {
+      this.clientDescriptor = clientDescriptor;
+      this.currentId=currentId;
+      this.eldestid=eldestid;
+      this.concurrency = concurrency;
+      this.activeServerEntity = activeServerEntity;
+      this.codec = codec;
+    }
+
+    @Override
+    public AsyncInvocationBuilder<M, R> replicate(boolean requiresReplication) {
+      // Replication ignored in this implementation.
+      return this;
+    }
+
+    @Override
+    public AsyncInvocationBuilder<M, R> message(M message) {
+      request = message;
+      return this;
+    }
+
+    @Override
+    public AsyncInvocationBuilder<M, R> blockEnqueuing(long time, TimeUnit unit) {
+      // Enqueuing is always blocking in this implementation.
+      return this;
+    }
+
+    @Override
+    public void invoke(InvocationCallback<R> callback) throws RejectedExecutionException {
+      Runnable runnable = () -> {
+        try {
+          byte[] result = sendInvocation(currentId, eldestid, activeServerEntity, codec);
+          callback.sent();
+          callback.received();
+          callback.result(codec.decodeResponse(result));
+          callback.complete();
+        } catch (Exception e) {
+          callback.failure(e);
+        } finally {
+          callback.retired();
+        }
+      };
+      new Thread(runnable).start();
+    }
+
+    private synchronized byte[] sendInvocation(long currentId, long eldestId, ActiveServerEntity<M, R> entity, MessageCodec<M, R> codec) throws EntityException {
+      int requestConcurrencyKey = concurrency.concurrencyKey(request);
+      try {
+        R response = entity.invokeActive(new PassThroughEntityActiveInvokeContext<>(clientDescriptor,
+                requestConcurrencyKey,
+                currentId,
+                eldestId, monitor),
+            request);
+        return codec.encodeResponse(response);
+      } catch (Exception e) {
+        throw new EntityServerException(null, null, null, e);
+      }
     }
   }
 

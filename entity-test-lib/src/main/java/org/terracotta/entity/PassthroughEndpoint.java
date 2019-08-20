@@ -18,12 +18,12 @@
  */
 package org.terracotta.entity;
 
-import com.google.common.util.concurrent.Futures;
 import org.junit.Assert;
 import org.terracotta.exception.EntityException;
 import org.terracotta.exception.EntityServerException;
 
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -89,13 +89,71 @@ public class PassthroughEndpoint<M extends EntityMessage, R extends EntityRespon
 
   @Override
   public AsyncInvocationBuilder<M, R> beginAsyncInvoke() {
-    throw new UnsupportedOperationException("implement me");
+    // We can't create new invocations when the endpoint is closed.
+    checkEndpointOpen();
+    return new AsyncInvocationBuilderImpl();
   }
 
   private class FakeClientDescriptor implements ClientDescriptor {
     @Override
     public ClientSourceId getSourceId() {
       return null;
+    }
+  }
+
+  private class AsyncInvocationBuilderImpl implements AsyncInvocationBuilder<M, R> {
+    private M request;
+
+    @Override
+    public AsyncInvocationBuilder<M, R> replicate(boolean requiresReplication) {
+      // Replication ignored in this implementation.
+      return this;
+    }
+
+    @Override
+    public AsyncInvocationBuilder<M, R> message(M message) {
+      this.request = message;
+      return this;
+    }
+
+    @Override
+    public AsyncInvocationBuilder<M, R> blockEnqueuing(long time, TimeUnit unit) {
+      // Enqueuing is always blocking in this implementation.
+      return this;
+    }
+
+    @Override
+    public void invoke(InvocationCallback<R> callback) throws RejectedExecutionException {
+      Runnable runnable = () -> {
+        synchronized (entity) {
+          try {
+            byte[] result = sendInvocation(codec.encodeMessage(request), monitor);
+            callback.sent();
+            callback.received();
+            callback.result(codec.decodeResponse(result));
+            callback.complete();
+          } catch (Exception ee) {
+            callback.failure(ee);
+          } finally {
+            callback.retired();
+          }
+        }
+      };
+      new Thread(runnable).start();
+    }
+
+    private byte[] sendInvocation(byte[] payload, InvokeMonitor monitor) throws EntityServerException {
+      try {
+        M message = codec.decodeMessage(payload);
+        int key = concurrencyStrategy.concurrencyKey(message);
+        R response = entity.invokeActive(new PassThroughEntityActiveInvokeContext<R>(clientDescriptor,
+            key,
+            idGenerator.incrementAndGet(),
+            eldest, monitor), message);
+        return codec.encodeResponse(response);
+      } catch (Exception e) {
+        throw new EntityServerException(null, null, null, e);
+      }
     }
   }
 
